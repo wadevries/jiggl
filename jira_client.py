@@ -19,8 +19,9 @@ class JIRA(object):
     def post(self, *args, **kwargs):
         return self.api('post', *args, **kwargs)
 
-    def log_time(self, issue, start, duration):
-        return self.post(f'issue/{issue}/worklog', {
-            'started': f'{start:%Y-%m-%dT%H:%M:%S}.000+0000',
-            'timeSpentSeconds': duration,
-        }, params={'notifyUsers': 'false'})
+    def log_time(self, issue, start, duration, comment=None):
+        data = {'started': f'{start:%Y-%m-%dT%H:%M:%S}.000+0000', 'timeSpentSeconds': duration}
+        if comment:
+            data['comment'] = comment
+
+        return self.post(f'issue/{issue}/worklog', data, params={'notifyUsers': 'false'})

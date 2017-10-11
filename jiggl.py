@@ -96,7 +96,8 @@ def run(start_date, end_date, username, password, server, toggl_token):
         j = JIRA(server, username, password)
         with click.progressbar(selected_entries, label='Sending to JIRA', width=0) as bar:
             for entry in bar:
-               j.log_time(entry['issue'], entry['start'], entry['duration'])
+                j.log_time(entry['issue'], entry['start'], entry['duration'],
+                           entry['description'][len(entry['issue']):].strip())
 
 
 if __name__ == '__main__':
