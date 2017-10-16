@@ -71,7 +71,7 @@ def format_seconds(duration):
 @click.option('--username', help='Your Atlassian Id\'s username')
 @click.option('--server', prompt=True, help='Like https://<THIS VALUE>.atlassian.net/')
 @click.option('--toggl-token', prompt=True, help='Toggl API token')
-@click.password_option(confirmation_prompt=False, help='Your Atlassian Id\'s password')
+@click.password_option(prompt=False, help='Your Atlassian Id\'s password')
 def run(start_date, end_date, username, password, server, toggl_token):
     toggl = TogglClientApi({'token': toggl_token, 'user-agent': 'Jiggl'})
 
@@ -93,6 +93,9 @@ def run(start_date, end_date, username, password, server, toggl_token):
             print(f"  {entry['start']:%H:%M}  {format_seconds(entry['duration']):>8}  {entry['description']}")
 
     if click.confirm('\nSend to JIRA?', abort=True):
+        if not password:
+            password = click.prompt('Atlassian ID password', hide_input=True)
+
         j = JIRA(server, username, password)
         with click.progressbar(selected_entries, label='Sending to JIRA', width=0) as bar:
             for entry in bar:
