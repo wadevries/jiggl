@@ -1,22 +1,23 @@
 import datetime
+import os
+import re
+import sys
 from configparser import ConfigParser
 from itertools import groupby
 
 import click
-import os
-
-import re
-
-import sys
 
 from api_client import TogglClientApi
 from jira_client import JIRA
 
 
+CONFIG_FILE_LOCATIONS = ['.jiggl', os.path.expanduser('~/.jiggl'), '.jiggle', os.path.expanduser('~/.jiggle')]
+
+
 def load_config():
     config = ConfigParser()
-    config.read(['.jiggl', os.path.expanduser('~/.jiggl'), '.jiggle', os.path.expanduser('~/.jiggle')])
-    return config
+    filename = config.read(CONFIG_FILE_LOCATIONS)
+    return config, filename
 
 
 class DateParameter(click.ParamType):
@@ -27,6 +28,7 @@ class DateParameter(click.ParamType):
             return datetime.datetime.strptime(value, '%Y-%m-%d')
         except ValueError:
             self.fail('{} is not a valid date'.format(value))
+
 
 DATE_TYPE = DateParameter()
 
@@ -49,7 +51,7 @@ def filter_entries(entries):
         parse_date(entry)
         for entry in entries
         if get_issue(entry)
-        and entry['duration'] >= 60  # JIRA doesn't like time entries less than 60 seconds
+           and entry['duration'] >= 60  # JIRA doesn't like time entries less than 60 seconds
     ]
 
 
@@ -76,8 +78,8 @@ def run(start_date, end_date, username, password, server, toggl_token):
     toggl = TogglClientApi({'token': toggl_token, 'user-agent': 'Jiggl'})
 
     # 1. Fetch all time entries from Toggl
-    time_entries = toggl.query('/time_entries', {'start_date': start_date.isoformat()+'+00:00',
-                                                 'end_date': end_date.isoformat()+'+00:00'})
+    time_entries = toggl.query('/time_entries', {'start_date': start_date.isoformat() + '+00:00',
+                                                 'end_date': end_date.isoformat() + '+00:00'})
 
     if not time_entries.ok:
         print(time_entries.reason)
@@ -97,12 +99,19 @@ def run(start_date, end_date, username, password, server, toggl_token):
             password = click.prompt('Atlassian ID password', hide_input=True)
 
         j = JIRA(server, username, password)
-        with click.progressbar(selected_entries, label='Sending to JIRA', width=0) as bar:
+        with click.progressbar(selected_entries, label='Sending to JIRA') as bar:
             for entry in bar:
                 j.log_time(entry['issue'], entry['start'], entry['duration'],
                            entry['description'][len(entry['issue']):].strip())
 
+        last_start = max(entry['start'] for entry in selected_entries)
+        if last_start:
+            config, filename = load_config()
+            config['jira']['start_date'] = (last_start.date() + datetime.timedelta(1)).strftime('%Y-%m-%d')
+            with open(filename[0], 'w') as configfile:
+                config.write(configfile)
+
 
 if __name__ == '__main__':
-    config = load_config()
+    config = load_config()[0]
     run(default_map=dict(config.items('toggl') + config.items('jira')) if config.sections() else {})
