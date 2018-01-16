@@ -3,7 +3,7 @@ from setuptools import setup
 setup(
     name='jiggl',
     version='0.1',
-    py_modules=['jiggl'],
+    py_modules=['jiggl', 'jira_client'],
     install_requires=[
         'Click',
         'requests',
